@@ -42,6 +42,9 @@ public class WordleHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIG
         catch (JsonSyntaxException e) {
             return response(400, "Invalid JSON: " + e.getMessage());
         }
+        catch (IllegalArgumentException e) {
+            return response(400, e.getMessage());
+        }
         catch (Exception e) {
             // this prints the stack trace to the AWS log file
             e.printStackTrace();
