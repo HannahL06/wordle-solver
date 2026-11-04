@@ -1,0 +1,32 @@
+plugins {
+    id 'java'
+    id 'com.gradleup.shadow' version '8.3.11'
+}
+
+group = 'org.example'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+dependencies {
+    implementation 'com.amazonaws:aws-lambda-java-core:1.4.1'
+    implementation 'com.amazonaws:aws-lambda-java-events:3.16.1'
+
+    // this is to turn JSON into Java objects
+    implementation 'com.google.code.gson:gson:2.15.0'
+
+    testImplementation platform('org.junit:junit-bom:6.0.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+}
