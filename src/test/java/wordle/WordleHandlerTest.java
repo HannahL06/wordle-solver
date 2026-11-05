@@ -5,6 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.amazonaws.services.lambda.runtime.ClientContext;
+import com.amazonaws.services.lambda.runtime.CognitoIdentity;
+import com.amazonaws.services.lambda.runtime.Context;
+import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
 import com.google.gson.Gson;
@@ -16,7 +20,75 @@ class WordleHandlerTest {
     private APIGatewayV2HTTPResponse call(String body) {
         APIGatewayV2HTTPEvent event = new APIGatewayV2HTTPEvent();
         event.setBody(body);
-        return handler.handleRequest(event, null);
+        return handler.handleRequest(event, new TestContext());
+    }
+
+    // the handler logs through the context, so tests need one that prints locally instead
+    private static class TestContext implements Context {
+        @Override
+        public String getAwsRequestId() {
+            return "test-request";
+        }
+
+        @Override
+        public String getLogGroupName() {
+            return "test-log-group";
+        }
+
+        @Override
+        public String getLogStreamName() {
+            return "test-log-stream";
+        }
+
+        @Override
+        public String getFunctionName() {
+            return "wordle-solver";
+        }
+
+        @Override
+        public String getFunctionVersion() {
+            return "test";
+        }
+
+        @Override
+        public String getInvokedFunctionArn() {
+            return "test-arn";
+        }
+
+        @Override
+        public CognitoIdentity getIdentity() {
+            return null;
+        }
+
+        @Override
+        public ClientContext getClientContext() {
+            return null;
+        }
+
+        @Override
+        public int getRemainingTimeInMillis() {
+            return 30000;
+        }
+
+        @Override
+        public int getMemoryLimitInMB() {
+            return 512;
+        }
+
+        @Override
+        public LambdaLogger getLogger() {
+            return new LambdaLogger() {
+                @Override
+                public void log(String message) {
+                    System.out.println("[lambda log] " + message);
+                }
+
+                @Override
+                public void log(byte[] message) {
+                    System.out.println("[lambda log] " + new String(message));
+                }
+            };
+        }
     }
 
     @Test

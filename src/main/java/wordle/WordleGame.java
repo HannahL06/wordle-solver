@@ -56,25 +56,49 @@ public class WordleGame {
         int wins = 0;
         for (int round = 0; round < rounds; round++) {
             String secret = words.get(random.nextInt(words.size()));
-            if (playRound(secret)) {
+            if (playRound(round + 1, secret)) {
                 wins++;
             }
         }
         return 100.0 * wins / rounds;
     }
 
-    private boolean playRound(String secret) {
+    /**
+     * Plays against the deployed Lambda and prints each round.
+     * Usage: WordleGame [function-url] [rounds]. The URL can also come from the
+     * WORDLE_FUNCTION_URL environment variable; rounds defaults to 1.
+     */
+    public static void main(String[] args) {
+        String url = args.length > 0 ? args[0] : System.getenv("WORDLE_FUNCTION_URL");
+        if (url == null || url.isBlank()) {
+            System.err.println("Usage: WordleGame <function-url> [rounds]"
+                    + " (or set WORDLE_FUNCTION_URL)");
+            return;
+        }
+        int rounds = args.length > 1 ? Integer.parseInt(args[1]) : 1;
+        double winRate = new WordleGame(url).play(rounds);
+        System.out.printf("Win rate over %d round(s): %.1f%%%n", rounds, winRate);
+    }
+
+    private boolean playRound(int round, String secret) {
+        System.out.println("Round " + round + " (secret word: " + secret + ")");
         WordleRequest clues = new WordleRequest();
-        for (int guessNumber = 0; guessNumber < MAX_GUESSES; guessNumber++) {
+        for (int guessNumber = 1; guessNumber <= MAX_GUESSES; guessNumber++) {
+            System.out.println("  Request " + guessNumber + ": green=" + clues.getGreen()
+                    + " yellow=" + clues.getYellow() + " grey=" + clues.getGrey());
             String guess = guesser.apply(clues);
+            System.out.println("  Response " + guessNumber + ": " + (guess == null ? "no word" : guess));
             if (guess == null || guess.length() != secret.length()) {
+                System.out.println("  LOSS");
                 return false;
             }
             if (guess.equals(secret)) {
+                System.out.println("  WIN on guess " + guessNumber);
                 return true;
             }
             addFeedback(clues, guess, secret);
         }
+        System.out.println("  LOSS");
         return false;
     }
 
