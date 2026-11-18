@@ -23,7 +23,7 @@ public class WordleSolver {
 
     private final List<String> words;
     private final Random random;
-    // worked out once when the solver is created, then reused for every first round
+    // ranking the whole list is slow, so it's done once here, not on every request
     private final List<String> startingWords;
 
     public WordleSolver() {
@@ -89,6 +89,8 @@ public class WordleSolver {
      */
     public List<String> genrateStartingWords() {
         List<String> ranked = rankByLetterFrequency(words);
+        // the top words (fewer if the list is short), copied so the full ranked list can be
+        // freed and the stored result can't be changed
         return List.copyOf(ranked.subList(0, Math.min(START_WORDS_SIZE, ranked.size())));
     }
 
@@ -113,9 +115,10 @@ public class WordleSolver {
         return true;
     }
 
-    // the highest-scoring word, or null if there are none; the first one wins a tie
+    // the highest-scoring word, or null if none; the first wins a tie
+    // one pass is enough, a full sort would be wasted work
     private String pickBest(List<String> candidates) {
-        int[] letterCounts = countLetters(candidates);
+        Map<Character, Integer> letterCounts = countLetters(candidates);
         String best = null;
         int bestScore = -1;
         for (String word : candidates) {
@@ -128,51 +131,45 @@ public class WordleSolver {
         return best;
     }
 
-    // best first: scores each word by how many words share each of its distinct letters
+    // best first; scores are stored up front so the sort doesn't recompute them
     private List<String> rankByLetterFrequency(List<String> candidates) {
-        int[] letterCounts = countLetters(candidates);
+        Map<Character, Integer> letterCounts = countLetters(candidates);
         Map<String, Integer> scores = new HashMap<>();
         for (String word : candidates) {
             scores.put(word, score(word, letterCounts));
         }
         List<String> ranked = new ArrayList<>(candidates);
+        // sorts by each word's stored score, highest first
         ranked.sort(Comparator.comparingInt((String word) -> scores.get(word)).reversed());
         return ranked;
     }
 
-    // how many of the words contain each letter
-    private int[] countLetters(List<String> candidates) {
-        int[] letterCounts = new int[26];
+    // how many words contain each letter (once per word)
+    private Map<Character, Integer> countLetters(List<String> candidates) {
+        Map<Character, Integer> letterCounts = new HashMap<>();
         for (String word : candidates) {
-            int mask = letterMask(word);
-            for (int i = 0; i < 26; i++) {
-                if ((mask & (1 << i)) != 0) {
-                    letterCounts[i]++;
-                }
+            for (char letter : distinctLetters(word)) {
+                letterCounts.merge(letter, 1, Integer::sum);
             }
         }
         return letterCounts;
     }
 
-    private int score(String word, int[] letterCounts) {
-        int mask = letterMask(word);
+    // sum of the counts of the word's distinct letters, so repeats earn credit once
+    private int score(String word, Map<Character, Integer> letterCounts) {
         int score = 0;
-        for (int i = 0; i < 26; i++) {
-            if ((mask & (1 << i)) != 0) {
-                score += letterCounts[i];
-            }
+        for (char letter : distinctLetters(word)) {
+            score += letterCounts.getOrDefault(letter, 0);
         }
         return score;
     }
 
-    private int letterMask(String word) {
-        int mask = 0;
-        for (char c : word.toCharArray()) {
-            if (c >= 'a' && c <= 'z') {
-                mask |= 1 << (c - 'a');
-            }
+    private Set<Character> distinctLetters(String word) {
+        Set<Character> letters = new HashSet<>();
+        for (char letter : word.toCharArray()) {
+            letters.add(letter);
         }
-        return mask;
+        return letters;
     }
 
     private Map<Integer, Character> toLetters(Map<Integer, String> clues) {
@@ -195,6 +192,7 @@ public class WordleSolver {
         if (letter == null || letter.length() != 1) {
             throw new IllegalArgumentException("Each letter must be a single character: " + letter);
         }
+        // lowercase it, then reject anything that isn't a plain a-z letter (digits, symbols, accents)
         char c = letter.toLowerCase(Locale.ROOT).charAt(0);
         if (c < 'a' || c > 'z') {
             throw new IllegalArgumentException("Each letter must be a-z: " + letter);

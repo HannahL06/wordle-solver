@@ -25,8 +25,7 @@ public class WordleHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIG
         try {
             String body = event.getBody();
             if (body == null || body.isBlank()) {
-                logger.log("400: request body is missing");
-                return response(400, "Request body is required");
+                return missingBody(logger);
             }
             if (event.getIsBase64Encoded()) {
                 body = new String(Base64.getDecoder().decode(body), StandardCharsets.UTF_8);
@@ -34,8 +33,7 @@ public class WordleHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIG
 
             WordleRequest request = gson.fromJson(body, WordleRequest.class);
             if (request == null) {
-                logger.log("400: request body is missing");
-                return response(400, "Request body is required");
+                return missingBody(logger);
             }
             logger.log("Request clues: " + gson.toJson(request));
 
@@ -62,6 +60,11 @@ public class WordleHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIG
             // this outputs the stack trace to the client
             return toResponseEvent(e);
         }
+    }
+
+    private APIGatewayV2HTTPResponse missingBody(LambdaLogger logger) {
+        logger.log("400: request body is missing");
+        return response(400, "Request body is required");
     }
 
     private APIGatewayV2HTTPResponse response(int statusCode, String body) {

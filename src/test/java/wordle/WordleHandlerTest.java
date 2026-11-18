@@ -93,8 +93,13 @@ class WordleHandlerTest {
 
     @Test
     void validRequestReturnsWordMatchingClues() {
-        APIGatewayV2HTTPResponse response = call(
-                "{\"green\":{\"0\":\"s\"},\"yellow\":{\"2\":\"r\"},\"grey\":[\"a\",\"l\",\"o\"]}");
+        APIGatewayV2HTTPResponse response = call("""
+                {
+                  "green": {"0": "s"},
+                  "yellow": {"2": "r"},
+                  "grey": ["a", "l", "o"]
+                }
+                """);
         assertEquals(200, response.getStatusCode());
 
         String word = new Gson().fromJson(response.getBody(), WordleResponse.class).getWord();
@@ -108,7 +113,8 @@ class WordleHandlerTest {
 
     @Test
     void impossibleCluesReturn404() {
-        assertEquals(404, call("{\"green\":{\"0\":\"z\",\"1\":\"z\",\"2\":\"z\"}}").getStatusCode());
+        assertEquals(404, call("""
+                {"green": {"0": "z", "1": "z", "2": "z"}}""").getStatusCode());
     }
 
     @Test
@@ -130,14 +136,19 @@ class WordleHandlerTest {
 
     @Test
     void invalidLetterReturns400() {
-        assertEquals(400, call("{\"grey\":[\"ab\"]}").getStatusCode());
-        assertEquals(400, call("{\"green\":{\"0\":\"1\"}}").getStatusCode());
-        assertEquals(400, call("{\"yellow\":{\"0\":\"\"}}").getStatusCode());
+        assertEquals(400, call("""
+                {"grey": ["ab"]}""").getStatusCode());
+        assertEquals(400, call("""
+                {"green": {"0": "1"}}""").getStatusCode());
+        assertEquals(400, call("""
+                {"yellow": {"0": ""}}""").getStatusCode());
     }
 
     @Test
     void positionOutOfRangeReturns400() {
-        assertEquals(400, call("{\"green\":{\"5\":\"a\"}}").getStatusCode());
-        assertEquals(400, call("{\"yellow\":{\"-1\":\"a\"}}").getStatusCode());
+        assertEquals(400, call("""
+                {"green": {"5": "a"}}""").getStatusCode());
+        assertEquals(400, call("""
+                {"yellow": {"-1": "a"}}""").getStatusCode());
     }
 }

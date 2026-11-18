@@ -4,11 +4,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.sun.net.httpserver.HttpServer;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 
 class WordleGameTest {
@@ -36,7 +40,7 @@ class WordleGameTest {
     }
 
     // guesses "zzzzz" until the given guess number of the round, then guesses "crane"
-    private Function<WordleRequest, String> winsOnGuess(int winningGuess) {
+    private Guesser winsOnGuess(int winningGuess) {
         int[] guessNumber = {0};
         return clues -> {
             boolean newRound = clues.getGreen().isEmpty() && clues.getYellow().isEmpty()
@@ -89,6 +93,65 @@ class WordleGameTest {
         WordleSolver solver = new WordleSolver(words, new Random(1));
         double percent = new WordleGame(words, solver::solve, new Random(2)).play(50);
         assertTrue(percent >= 90.0, "win rate was " + percent);
+    }
+
+    // runs a tiny local web server that answers like the Lambda, to check the Retrofit client
+    private HttpServer startServer(int status, String responseBody, List<String> requestBodies) throws IOException {
+        HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+        server.createContext("/", exchange -> {
+            requestBodies.add(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            byte[] bytes = responseBody.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(status, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        server.start();
+        return server;
+    }
+
+    private String urlOf(HttpServer server) {
+        return "http://127.0.0.1:" + server.getAddress().getPort();
+    }
+
+    @Test
+    void retrofitClientPostsTheCluesAndReadsTheWord() throws IOException {
+        List<String> requests = new ArrayList<>();
+        HttpServer server = startServer(200, """
+                {"word": "crane"}""", requests);
+        try {
+            WordleGame game = new WordleGame(List.of("crane"), WordleGame.overRetrofit(urlOf(server)));
+            assertEquals(100.0, game.play(1));
+            assertEquals("""
+                    {"green":{},"yellow":{},"grey":[]}""", requests.get(0));
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void retrofitClientTreatsA404AsNoWord() throws IOException {
+        List<String> requests = new ArrayList<>();
+        HttpServer server = startServer(404, "No word matches the given letters", requests);
+        try {
+            WordleGame game = new WordleGame(List.of("crane"), WordleGame.overRetrofit(urlOf(server)));
+            assertEquals(0.0, game.play(1));
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void retrofitClientReportsOtherErrors() throws IOException {
+        List<String> requests = new ArrayList<>();
+        HttpServer server = startServer(500, "boom", requests);
+        try {
+            WordleGame game = new WordleGame(List.of("crane"), WordleGame.overRetrofit(urlOf(server)));
+            IllegalStateException error = assertThrows(IllegalStateException.class, () -> game.play(1));
+            assertTrue(error.getMessage().contains("500"));
+        } finally {
+            server.stop(0);
+        }
     }
 
     @Test

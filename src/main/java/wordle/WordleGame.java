@@ -1,16 +1,18 @@
 package wordle;
 
-import com.google.gson.Gson;
 import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.function.Function;
+import java.util.concurrent.TimeUnit;
+import okhttp3.OkHttpClient;
+import retrofit2.Call;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
+import retrofit2.http.Body;
+import retrofit2.http.POST;
 
 /**
  * Plays Wordle against the solver to measure how often it wins.
@@ -19,24 +21,24 @@ public class WordleGame {
     private static final int MAX_GUESSES = 6;
 
     private final List<String> words;
-    private final Function<WordleRequest, String> guesser;
+    private final Guesser guesser;
     private final Random random;
 
     /**
      * Plays against the deployed Lambda at the given Function URL.
      */
     public WordleGame(String functionUrl) {
-        this(WordleSolver.loadWords(), overHttp(functionUrl));
+        this(WordleSolver.loadWords(), overRetrofit(functionUrl));
     }
 
     /**
      * @param guesser takes the clues so far and returns the next guess, or null if there is none
      */
-    public WordleGame(List<String> words, Function<WordleRequest, String> guesser) {
+    public WordleGame(List<String> words, Guesser guesser) {
         this(words, guesser, new Random());
     }
 
-    public WordleGame(List<String> words, Function<WordleRequest, String> guesser, Random random) {
+    public WordleGame(List<String> words, Guesser guesser, Random random) {
         this.words = words;
         this.guesser = guesser;
         this.random = random;
@@ -71,8 +73,7 @@ public class WordleGame {
     public static void main(String[] args) {
         String url = args.length > 0 ? args[0] : System.getenv("WORDLE_FUNCTION_URL");
         if (url == null || url.isBlank()) {
-            System.err.println("Usage: WordleGame <function-url> [rounds]"
-                    + " (or set WORDLE_FUNCTION_URL)");
+            System.err.println("Usage: WordleGame <function-url> [rounds] (or set WORDLE_FUNCTION_URL)");
             return;
         }
         int rounds = args.length > 1 ? Integer.parseInt(args[1]) : 1;
@@ -86,7 +87,7 @@ public class WordleGame {
         for (int guessNumber = 1; guessNumber <= MAX_GUESSES; guessNumber++) {
             System.out.println("  Request " + guessNumber + ": green=" + clues.getGreen()
                     + " yellow=" + clues.getYellow() + " grey=" + clues.getGrey());
-            String guess = guesser.apply(clues);
+            String guess = guesser.nextGuess(clues);
             System.out.println("  Response " + guessNumber + ": " + (guess == null ? "no word" : guess));
             if (guess == null || guess.length() != secret.length()) {
                 System.out.println("  LOSS");
@@ -105,23 +106,28 @@ public class WordleGame {
     // adds what Wordle would show for this guess to the clues: green for the right spot,
     // yellow for a letter elsewhere in the word, grey for a letter with no copy left
     private void addFeedback(WordleRequest clues, String guess, String secret) {
-        int[] unmatched = new int[26];
+        // secret letters not matched by a green; each copy allows one yellow
+        Map<Character, Integer> unmatched = new HashMap<>();
         boolean[] isGreen = new boolean[secret.length()];
+
+        // greens first, so a green letter isn't also used up as a yellow
         for (int i = 0; i < secret.length(); i++) {
             if (guess.charAt(i) == secret.charAt(i)) {
                 isGreen[i] = true;
                 clues.getGreen().put(i, String.valueOf(guess.charAt(i)));
             } else {
-                unmatched[secret.charAt(i) - 'a']++;
+                unmatched.merge(secret.charAt(i), 1, Integer::sum);
             }
         }
+
         for (int i = 0; i < guess.length(); i++) {
             if (isGreen[i]) {
                 continue;
             }
             char letter = guess.charAt(i);
-            if (unmatched[letter - 'a'] > 0) {
-                unmatched[letter - 'a']--;
+            int copiesLeft = unmatched.getOrDefault(letter, 0);
+            if (copiesLeft > 0) {
+                unmatched.put(letter, copiesLeft - 1);
                 clues.getYellow().put(i, String.valueOf(letter));
             } else if (!clues.getGrey().contains(String.valueOf(letter))) {
                 clues.getGrey().add(String.valueOf(letter));
@@ -129,30 +135,37 @@ public class WordleGame {
         }
     }
 
-    private static Function<WordleRequest, String> overHttp(String functionUrl) {
-        Gson gson = new Gson();
-        HttpClient client = HttpClient.newHttpClient();
+    // the Lambda's one endpoint: the clues go in as the JSON body, a word comes back
+    interface WordleApi {
+        @POST("/")
+        Call<WordleResponse> solve(@Body WordleRequest clues);
+    }
+
+    static Guesser overRetrofit(String functionUrl) {
+        OkHttpClient client = new OkHttpClient.Builder()
+                .callTimeout(30, TimeUnit.SECONDS)
+                .build();
+        // Retrofit requires the base URL to end with a slash
+        String baseUrl = functionUrl.endsWith("/") ? functionUrl : functionUrl + "/";
+        WordleApi api = new Retrofit.Builder()
+                .baseUrl(baseUrl)
+                .client(client)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build()
+                .create(WordleApi.class);
         return clues -> {
-            HttpRequest request = HttpRequest.newBuilder(URI.create(functionUrl))
-                    .timeout(Duration.ofSeconds(30))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(clues)))
-                    .build();
             try {
-                HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-                if (response.statusCode() == 404) {
+                Response<WordleResponse> response = api.solve(clues).execute();
+                if (response.code() == 404) {
                     return null;
                 }
-                if (response.statusCode() != 200) {
-                    throw new IllegalStateException(
-                            "Function returned " + response.statusCode() + ": " + response.body());
+                if (!response.isSuccessful()) {
+                    String body = response.errorBody() == null ? "" : response.errorBody().string();
+                    throw new IllegalStateException("Function returned " + response.code() + ": " + body);
                 }
-                return gson.fromJson(response.body(), WordleResponse.class).getWord();
+                return response.body().getWord();
             } catch (IOException e) {
                 throw new IllegalStateException("Request to the function failed", e);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new IllegalStateException("Interrupted while calling the function", e);
             }
         };
     }

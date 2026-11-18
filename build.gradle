@@ -22,6 +22,10 @@ dependencies {
     // this is to turn JSON into Java objects
     implementation 'com.google.code.gson:gson:2.15.0'
 
+    // used by WordleGame to call the deployed Lambda
+    implementation 'com.squareup.retrofit2:retrofit:3.0.0'
+    implementation 'com.squareup.retrofit2:converter-gson:3.0.0'
+
     testImplementation platform('org.junit:junit-bom:6.0.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

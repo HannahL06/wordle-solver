@@ -2,8 +2,10 @@ package wordle;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -29,7 +31,7 @@ class WordleSolverTest {
         WordleRequest request = new WordleRequest();
         // crane, trace and crate all have r at index 1, so only roate and eerie remain
         request.setYellow(Map.of(1, "r"));
-        assertEquals(true, List.of("roate", "eerie").contains(solver.solve(request)));
+        assertTrue(List.of("roate", "eerie").contains(solver.solve(request)));
     }
 
     @Test
@@ -56,7 +58,7 @@ class WordleSolverTest {
 
     @Test
     void emptyRequestStillReturnsAWord() {
-        assertEquals(true, solver.solve(new WordleRequest()) != null);
+        assertNotNull(solver.solve(new WordleRequest()));
     }
 
     @Test
@@ -80,7 +82,7 @@ class WordleSolverTest {
             seen.add(word);
         }
         // picks vary rather than always returning the same word
-        assertEquals(true, seen.size() > 1);
+        assertTrue(seen.size() > 1);
     }
 
     @Test
