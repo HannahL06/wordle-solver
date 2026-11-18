@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="wordle.WordleHandlerTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-11-18T21:24:50.725Z" hostname="CHANIS-LAPTOP" time="0.314">
+  <properties/>
+  <testcase name="validRequestReturnsWordMatchingClues()" classname="wordle.WordleHandlerTest" time="0.031"/>
+  <testcase name="invalidLetterReturns400()" classname="wordle.WordleHandlerTest" time="0.007"/>
+  <testcase name="impossibleCluesReturn404()" classname="wordle.WordleHandlerTest" time="0.008"/>
+  <testcase name="missingBodyReturns400()" classname="wordle.WordleHandlerTest" time="0.004"/>
+  <testcase name="invalidJsonReturns400()" classname="wordle.WordleHandlerTest" time="0.005"/>
+  <testcase name="positionOutOfRangeReturns400()" classname="wordle.WordleHandlerTest" time="0.005"/>
+  <testcase name="noCluesReturnsAStartingWord()" classname="wordle.WordleHandlerTest" time="0.005"/>
+  <system-out><![CDATA[[lambda log] Request clues: {"green":{"0":"s"},"yellow":{"2":"r"},"grey":["a","l","o"]}
+[lambda log] 200: returning word shire
+[lambda log] Request clues: {"green":{},"yellow":{},"grey":["ab"]}
+[lambda log] 400: Each letter must be a single character: ab
+[lambda log] Request clues: {"green":{"0":"1"},"yellow":{},"grey":[]}
+[lambda log] 400: Each letter must be a-z: 1
+[lambda log] Request clues: {"green":{},"yellow":{"0":""},"grey":[]}
+[lambda log] 400: Each letter must be a single character: 
+[lambda log] Request clues: {"green":{"0":"z","1":"z","2":"z"},"yellow":{},"grey":[]}
+[lambda log] 404: no word matches the clues
+[lambda log] 400: request body is missing
+[lambda log] 400: invalid JSON: com.google.gson.stream.MalformedJsonException: Expected ':' at line 1 column 7 path $.not
+See https://github.com/google/gson/blob/main/Troubleshooting.md#malformed-json
+[lambda log] Request clues: {"green":{"5":"a"},"yellow":{},"grey":[]}
+[lambda log] 400: Position must be between 0 and 4: 5
+[lambda log] Request clues: {"green":{},"yellow":{"-1":"a"},"grey":[]}
+[lambda log] 400: Position must be between 0 and 4: -1
+[lambda log] Request clues: {"green":{},"yellow":{},"grey":[]}
+[lambda log] 200: returning word noise
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

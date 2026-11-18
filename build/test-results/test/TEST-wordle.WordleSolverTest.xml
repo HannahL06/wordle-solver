@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="wordle.WordleSolverTest" tests="11" skipped="0" failures="0" errors="0" timestamp="2026-11-18T21:24:51.041Z" hostname="CHANIS-LAPTOP" time="0.32">
+  <properties/>
+  <testcase name="genrateStartingWordsExcludesLowScoringWords()" classname="wordle.WordleSolverTest" time="0.245"/>
+  <testcase name="positionOutOfRangeIsRejected()" classname="wordle.WordleSolverTest" time="0.016"/>
+  <testcase name="emptyRequestStillReturnsAWord()" classname="wordle.WordleSolverTest" time="0.002"/>
+  <testcase name="greyLettersAreExcluded()" classname="wordle.WordleSolverTest" time="0.007"/>
+  <testcase name="contradictoryGreenAndYellowReturnsNull()" classname="wordle.WordleSolverTest" time="0.006"/>
+  <testcase name="noMatchReturnsNull()" classname="wordle.WordleSolverTest" time="0.002"/>
+  <testcase name="invalidLettersAreRejected()" classname="wordle.WordleSolverTest" time="0.007"/>
+  <testcase name="greyLetterAlsoGreenIsNotExcluded()" classname="wordle.WordleSolverTest" time="0.003"/>
+  <testcase name="startingWordIsNullWithNoWords()" classname="wordle.WordleSolverTest" time="0.001"/>
+  <testcase name="greenLetterMustBeAtPosition()" classname="wordle.WordleSolverTest" time="0.001"/>
+  <testcase name="yellowLetterMustBePresentButNotAtPosition()" classname="wordle.WordleSolverTest" time="0.003"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
